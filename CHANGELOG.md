@@ -6,6 +6,14 @@ Format pencatatan mengacu pada [Keep a Changelog](https://keepachangelog.com/en/
 
 ---
 
+## [1.0.6] - 2026-11-28
+
+### 📦 Sinkronisasi `pakem v1.0.6` & Dokumentasi
+- Memperbarui dependensi inti ke `pakem = "1.0.6"` (terhubung ke `pakem-derive = "1.0.5"` dan `wasmi 2.0.3`).
+- Menambahkan logo resmi Pakem Canting SVG dan memperbarui panduan `README.md` (`Rust 2024`, `canting update`, URL `pakem-rs/canting`).
+
+---
+
 ## [1.0.5] - 2026-11-27
 
 ### ⚡ Interactive Toolchain Upgrade & Dependency Updater
