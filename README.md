@@ -1,5 +1,9 @@
 # ⚡ Canting CLI (`canting`)
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/pakem-rs/pakem/1.x/resources/images/logo.svg" alt="Pakem Framework Logo" width="120">
+</p>
+
 > **"Look like Laravel, Run at Rust Speed."**  
 > *The official Artisan-like command-line toolchain for Pakem Framework.*
 
