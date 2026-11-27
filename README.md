@@ -4,7 +4,7 @@
 > *The official Artisan-like command-line toolchain for Pakem Framework.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-2021%20edition-orange.svg)](https://www.rust-lang.org)
+[![Rust 2024](https://img.shields.io/badge/Rust-2024_Edition-orange.svg)](https://www.rust-lang.org)
 [![Pakem Framework](https://img.shields.io/badge/ecosystem-Pakem%20Framework-orange.svg)](https://github.com/pakem-rs/framework)
 
 ---
@@ -17,14 +17,19 @@
 
 ## 📦 Instalasi
 
-### Dari GitHub (Rekomendasi Terkini)
+### Dari Crates.io (Rekomendasi)
 ```bash
-cargo install --git https://github.com/pakem-rs/framework
+cargo install canting
+```
+
+### Dari GitHub Resmi
+```bash
+cargo install --git https://github.com/pakem-rs/canting.git --force
 ```
 
 ### Atau Build dari Sumber
 ```bash
-git clone https://github.com/pakem-rs/framework.git
+git clone https://github.com/pakem-rs/canting.git
 cd canting
 cargo install --path .
 ```
@@ -135,7 +140,15 @@ canting audit
 canting clean
 canting clean --purge
 
-# Memperbarui toolchain Canting CLI dan dependensi framework
+# Menghasilkan APP_KEY 256-bit (opsi --jwt, --show, --force)
+canting key:generate
+
+# Memperbarui dependensi proyek dengan ringkasan diff ala Composer
+canting update
+canting update --pakem-only
+canting update --dry-run
+
+# Memperbarui binary toolchain Canting CLI
 canting upgrade
 ```
 
@@ -158,7 +171,12 @@ canting upgrade
 | `canting migrate:rollback`| Rollback migrasi database terakhir |
 | `canting queue:work` | Menjalankan background queue consumer |
 | `canting audit` | Pengecekan audit keamanan konfigurasi |
+| `canting key:generate` | Menghasilkan `APP_KEY` 256-bit & opsi `--jwt` |
+| `canting aurora:install` | Memasang starter kit **Pakem Aurora** |
+| `canting clone:laravel\|ci\|api\|db` | Polyglot cloner dari Laravel, CI, OpenAPI, atau DB live |
+| `canting tinker` | REPL interaktif untuk model & query database |
 | `canting clean` | Membersihkan cache build target yang membengkak |
+| `canting update` | Memperbarui dependensi proyek (`--pakem-only`, `--dry-run`) |
 | `canting upgrade` | Memperbarui CLI ke versi termutakhir |
 
 ---
