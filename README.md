@@ -1,17 +1,17 @@
-# ⚡ Lumina CLI (`lumina`)
+# ⚡ Canting CLI (`canting`)
 
 > **"Look like Laravel, Run at Rust Speed."**  
-> *The official Artisan-like command-line toolchain for Lumina Framework.*
+> *The official Artisan-like command-line toolchain for Pakem Framework.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2021%20edition-orange.svg)](https://www.rust-lang.org)
-[![Lumina Framework](https://img.shields.io/badge/ecosystem-Lumina%20Framework-blue.svg)](https://github.com/lumina-java/framework)
+[![Pakem Framework](https://img.shields.io/badge/ecosystem-Pakem%20Framework-orange.svg)](https://github.com/pakem-rs/framework)
 
 ---
 
-## 🌟 Tentang Lumina CLI
+## 🌟 Tentang Canting CLI
 
-`lumina-cli` menghadirkan keajaiban pengalaman pengembang (*Developer Experience*) ala **Laravel Artisan** ke dalam dunia **Rust**. Dirancang untuk membangkitkan proyek, merancang boilerplate secara otomatis (*scaffolding*), mengeksekusi migrasi database, mengelola antrean latar belakang (*background queue*), hingga menjalankan audit keamanan proyek secara instan.
+`canting` menghadirkan keajaiban pengalaman pengembang (*Developer Experience*) ala **Laravel Artisan** ke dalam dunia **Rust**. Dirancang untuk membangkitkan proyek, merancang boilerplate secara otomatis (*scaffolding*), mengeksekusi migrasi database, mengelola antrean latar belakang (*background queue*), hingga menjalankan audit keamanan proyek secara instan.
 
 ---
 
@@ -19,19 +19,19 @@
 
 ### Dari GitHub (Rekomendasi Terkini)
 ```bash
-cargo install --git https://github.com/lumina-java/lumina-cli
+cargo install --git https://github.com/pakem-rs/framework
 ```
 
 ### Atau Build dari Sumber
 ```bash
-git clone https://github.com/lumina-java/lumina-cli.git
-cd lumina-cli
+git clone https://github.com/pakem-rs/framework.git
+cd canting
 cargo install --path .
 ```
 
 Verifikasi instalasi dengan mengetik:
 ```bash
-lumina --version
+canting --version
 ```
 
 ---
@@ -39,19 +39,19 @@ lumina --version
 ## 🚀 Panduan Penggunaan & Perintah Lengkap
 
 ### 1. Inisialisasi Proyek Baru
-Membangkitkan struktur aplikasi Lumina lengkap dengan pilihan database:
+Membangkitkan struktur aplikasi Pakem lengkap dengan pilihan database:
 ```bash
 # Proyek baru dengan database SQLite (default)
-lumina new my_app
+canting new my_app
 
 # Proyek baru dengan database PostgreSQL
-lumina new my_app --db postgres
+canting new my_app --db postgres
 
 # Proyek baru dengan database MySQL
-lumina new my_app --db mysql
+canting new my_app --db mysql
 
 # Mode offline (menggunakan embedded template)
-lumina new my_app --offline
+canting new my_app --offline
 ```
 
 ---
@@ -59,10 +59,10 @@ lumina new my_app --offline
 ### 2. Menjalankan Server & Pengembangan
 ```bash
 # Menjalankan server aplikasi (cargo run)
-lumina serve
+canting serve
 
 # Menjalankan server dengan live-reload otomatis (cargo watch)
-lumina watch
+canting watch
 ```
 
 ---
@@ -73,31 +73,31 @@ Bebaskan diri Anda dari penulisan *boilerplate* manual:
 
 ```bash
 # Membangkitkan Controller baru
-lumina make:controller UserController
+canting make:controller UserController
 
 # Membangkitkan Model ORM + Berkas Migrasi otomatis
-lumina make:model Product
+canting make:model Product
 
 # Membangkitkan berkas migrasi database kosong
-lumina make:migration create_orders_table
+canting make:migration create_orders_table
 
 # Membangkitkan Full CRUD instan (Model, Controller, Migrasi, Blade Views)
-lumina make:crud Post title:string content:text is_published:boolean
+canting make:crud Post title:string content:text is_published:boolean
 
 # Membangkitkan sistem Autentikasi lengkap (Register, Login, Session, Model User)
-lumina make:auth
+canting make:auth
 
 # Membangkitkan Model Factory & Faker untuk unit testing dan seeding
-lumina make:factory UserFactory
+canting make:factory UserFactory
 
 # Membangkitkan template view Blade Native
-lumina make:view dashboard.analytics
+canting make:view dashboard.analytics
 
 # Membangkitkan Background Queue Job
-lumina make:job SendInvoiceEmail
+canting make:job SendInvoiceEmail
 
-# Membangkitkan Komponen Reaktif Lumina Live (Server-Driven Reactive UI)
-lumina make:live Counter
+# Membangkitkan Komponen Reaktif Pakem Live (Server-Driven Reactive UI)
+canting make:live Counter
 ```
 
 ---
@@ -106,10 +106,10 @@ lumina make:live Counter
 Eksekusi migrasi database transaksional tanpa memerlukan dependensi eksternal:
 ```bash
 # Jalankan semua migrasi pending
-lumina migrate
+canting migrate
 
 # Batalkan (rollback) batch migrasi terakhir
-lumina migrate:rollback
+canting migrate:rollback
 ```
 
 ---
@@ -118,25 +118,25 @@ lumina migrate:rollback
 Jalankan pemrosesan antrean asinkron untuk email, notifikasi, dan kalkulasi berat:
 ```bash
 # Menjalankan worker pada queue default
-lumina queue:work
+canting queue:work
 
 # Menjalankan worker pada antrean khusus
-lumina queue:work --queue high-priority
+canting queue:work --queue high-priority
 ```
 
 ---
 
 ### 6. Keamanan & Pemeliharaan Proyek
 ```bash
-# Lumina Shield: Audit keamanan otomatis untuk file .env, dependensi, dan secret leak
-lumina audit
+# Pakem Shield: Audit keamanan otomatis untuk file .env, dependensi, dan secret leak
+canting audit
 
 # Membersihkan cache kompilasi compiler & build artifacts (membebaskan ruang disk)
-lumina clean
-lumina clean --purge
+canting clean
+canting clean --purge
 
-# Memperbarui toolchain Lumina CLI dan dependensi framework
-lumina upgrade
+# Memperbarui toolchain Canting CLI dan dependensi framework
+canting upgrade
 ```
 
 ---
@@ -145,21 +145,21 @@ lumina upgrade
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `lumina new <name>` | Membangkitkan skeleton aplikasi baru (*batteries-included*) |
-| `lumina serve` | Menjalankan server aplikasi di port 8000 |
-| `lumina watch` | Server dengan hot-reloading otomatis saat kode berubah |
-| `lumina make:controller` | Membuat controller web/API |
-| `lumina make:model` | Membuat model ORM `LuminaModel` |
-| `lumina make:crud` | Membangkitkan seluruh alur CRUD dalam 1 detik |
-| `lumina make:auth` | Sistem autentikasi instan (Login, Register, Session) |
-| `lumina make:live` | Komponen reaktif fullstack Lumina Live |
-| `lumina make:factory` | Model Factory & Faker Indonesia |
-| `lumina migrate` | Menjalankan migrasi database SQLx |
-| `lumina migrate:rollback`| Rollback migrasi database terakhir |
-| `lumina queue:work` | Menjalankan background queue consumer |
-| `lumina audit` | Pengecekan audit keamanan konfigurasi |
-| `lumina clean` | Membersihkan cache build target yang membengkak |
-| `lumina upgrade` | Memperbarui CLI ke versi termutakhir |
+| `canting new <name>` | Membangkitkan skeleton aplikasi baru (*batteries-included*) |
+| `canting serve` | Menjalankan server aplikasi di port 8000 |
+| `canting watch` | Server dengan hot-reloading otomatis saat kode berubah |
+| `canting make:controller` | Membuat controller web/API |
+| `canting make:model` | Membuat model ORM `PakemModel` |
+| `canting make:crud` | Membangkitkan seluruh alur CRUD dalam 1 detik |
+| `canting make:auth` | Sistem autentikasi instan (Login, Register, Session) |
+| `canting make:live` | Komponen reaktif fullstack Pakem Live |
+| `canting make:factory` | Model Factory & Faker Indonesia |
+| `canting migrate` | Menjalankan migrasi database SQLx |
+| `canting migrate:rollback`| Rollback migrasi database terakhir |
+| `canting queue:work` | Menjalankan background queue consumer |
+| `canting audit` | Pengecekan audit keamanan konfigurasi |
+| `canting clean` | Membersihkan cache build target yang membengkak |
+| `canting upgrade` | Memperbarui CLI ke versi termutakhir |
 
 ---
 
@@ -176,5 +176,6 @@ Kontribusi dari komunitas sangat disambut dengan antusias!
 
 ## 📜 Lisensi
 
-Lumina CLI dirilis di bawah lisensi terbuka [MIT License](LICENSE).  
-Dikelola dengan bangga oleh tim pengembang [Lumina Framework](https://github.com/lumina-java/framework).
+Canting CLI dirilis di bawah lisensi terbuka [MIT License](LICENSE).  
+Dikelola dengan bangga oleh tim pengembang [Pakem Framework](https://github.com/pakem-rs/framework).
+

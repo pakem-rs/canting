@@ -7,20 +7,28 @@ use std::fs;
 use std::path::Path;
 use std::time::Instant;
 
-/// Helper untuk menyelesaikan URL database dari .env
+/// Helper untuk menyelesaikan URL database dari .env (mendukung DATABASE_URL maupun DB_* ala Laravel)
 pub fn resolve_database_url() -> Result<(String, String), String> {
     dotenv::dotenv().ok();
 
     if let Ok(url) = std::env::var("DATABASE_URL") {
-        if !url.trim().is_empty() {
-            let driver = if url.starts_with("postgres") || url.starts_with("postgresql") {
+        let trimmed = url.trim();
+        if !trimmed.is_empty()
+            && (trimmed.contains("://")
+                || trimmed.starts_with("sqlite:")
+                || trimmed.starts_with("jdbc:")
+                || trimmed.to_ascii_lowercase().starts_with("server="))
+        {
+            let driver = if trimmed.starts_with("postgres") || trimmed.starts_with("postgresql") {
                 "postgresql".to_string()
-            } else if url.starts_with("mysql") {
+            } else if trimmed.starts_with("mysql") {
                 "mysql".to_string()
+            } else if trimmed.starts_with("jdbc:sqlserver") || trimmed.starts_with("sqlserver") || trimmed.starts_with("mssql") {
+                "mssql".to_string()
             } else {
                 "sqlite".to_string()
             };
-            return Ok((url, driver));
+            return Ok((trimmed.to_string(), driver));
         }
     }
 
@@ -32,7 +40,7 @@ pub fn resolve_database_url() -> Result<(String, String), String> {
     let pass = std::env::var("DB_PASSWORD").unwrap_or_default();
 
     match conn.to_lowercase().as_str() {
-        "postgres" | "postgresql" | "pg" => {
+        "postgres" | "postgresql" | "pgsql" | "pg" => {
             let p = if port.is_empty() { "5432" } else { &port };
             let auth = if pass.is_empty() { user } else { format!("{}:{}", user, pass) };
             Ok((format!("postgres://{}@{}:{}/{}", auth, host, p, db), "postgresql".to_string()))
@@ -42,9 +50,22 @@ pub fn resolve_database_url() -> Result<(String, String), String> {
             let auth = if pass.is_empty() { user } else { format!("{}:{}", user, pass) };
             Ok((format!("mysql://{}@{}:{}/{}", auth, host, p, db), "mysql".to_string()))
         }
+        "mssql" | "sqlserver" | "sqlsrv" => {
+            let p = if port.is_empty() { "1433" } else { &port };
+            let trust = std::env::var("DB_TRUST_CERT").unwrap_or_else(|_| "true".to_string());
+            Ok((
+                format!(
+                    "jdbc:sqlserver://{}:{};user={};password={};database={};trustServerCertificate={}",
+                    host, p, user, pass, db, trust
+                ),
+                "mssql".to_string(),
+            ))
+        }
         _ => {
-            let path = if db.starts_with("./") || db.starts_with("/") || db.contains(":") {
+            let path = if db.starts_with("./") || db.starts_with("/") || db.contains(":\\") || db.contains(":/") {
                 db
+            } else if db.starts_with("sqlite:") {
+                db.replace("sqlite:", "")
             } else {
                 format!("./{}", db)
             };
@@ -73,12 +94,12 @@ fn mask_credentials(url: &str) -> String {
     url.to_string()
 }
 
-/// Memastikan tabel tracking migrasi (_lumina_migrations) tersedia
+/// Memastikan tabel tracking migrasi (_pakem_migrations) tersedia
 pub async fn ensure_migrations_table(pool: &AnyPool, driver: &str) -> Result<(), String> {
     let ddl = match driver {
         "postgresql" => {
             r#"
-            CREATE TABLE IF NOT EXISTS _lumina_migrations (
+            CREATE TABLE IF NOT EXISTS _pakem_migrations (
                 id SERIAL PRIMARY KEY,
                 migration_name VARCHAR(255) UNIQUE NOT NULL,
                 batch INTEGER NOT NULL DEFAULT 1,
@@ -88,7 +109,7 @@ pub async fn ensure_migrations_table(pool: &AnyPool, driver: &str) -> Result<(),
         }
         "mysql" => {
             r#"
-            CREATE TABLE IF NOT EXISTS _lumina_migrations (
+            CREATE TABLE IF NOT EXISTS _pakem_migrations (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 migration_name VARCHAR(255) UNIQUE NOT NULL,
                 batch INT NOT NULL DEFAULT 1,
@@ -98,7 +119,7 @@ pub async fn ensure_migrations_table(pool: &AnyPool, driver: &str) -> Result<(),
         }
         _ => {
             r#"
-            CREATE TABLE IF NOT EXISTS _lumina_migrations (
+            CREATE TABLE IF NOT EXISTS _pakem_migrations (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 migration_name TEXT UNIQUE NOT NULL,
                 batch INTEGER NOT NULL DEFAULT 1,
@@ -119,8 +140,8 @@ pub async fn ensure_migrations_table(pool: &AnyPool, driver: &str) -> Result<(),
 pub async fn get_applied_migrations(pool: &AnyPool) -> Result<Vec<(String, i32, String)>, String> {
     let mut results = Vec::new();
 
-    // 1. Baca dari _lumina_migrations
-    let rows = sqlx::query("SELECT migration_name, batch, CAST(applied_at AS TEXT) as applied_at FROM _lumina_migrations ORDER BY id ASC")
+    // 1. Baca dari _pakem_migrations
+    let rows = sqlx::query("SELECT migration_name, batch, CAST(applied_at AS TEXT) as applied_at FROM _pakem_migrations ORDER BY id ASC")
         .fetch_all(pool)
         .await;
 
@@ -151,9 +172,9 @@ pub async fn get_applied_migrations(pool: &AnyPool) -> Result<Vec<(String, i32, 
     Ok(results)
 }
 
-/// Eksekusi Perintah: lumina migrate
+/// Eksekusi Perintah: canting migrate
 pub async fn run_migrate_async() {
-    println!("{}", "🗄  LUMINA DATABASE MIGRATION ENGINE".bright_purple().bold());
+    println!("{}", "🗄  PAKEM DATABASE MIGRATION ENGINE".bright_purple().bold());
     println!("─────────────────────────────────────────────────────────────────");
 
     let (url, driver) = match resolve_database_url() {
@@ -240,11 +261,11 @@ pub async fn run_migrate_async() {
             return;
         }
 
-        // Catat ke _lumina_migrations
+        // Catat ke _pakem_migrations
         let insert_query = if driver == "postgresql" {
-            "INSERT INTO _lumina_migrations (migration_name, batch) VALUES ($1, $2)"
+            "INSERT INTO _pakem_migrations (migration_name, batch) VALUES ($1, $2)"
         } else {
-            "INSERT INTO _lumina_migrations (migration_name, batch) VALUES (?, ?)"
+            "INSERT INTO _pakem_migrations (migration_name, batch) VALUES (?, ?)"
         };
         if let Err(e) = sqlx::query(insert_query)
             .bind(&file_name)
@@ -281,9 +302,9 @@ pub async fn run_migrate_async() {
     }
 }
 
-/// Eksekusi Perintah: lumina migrate:rollback
+/// Eksekusi Perintah: canting migrate:rollback
 pub async fn run_rollback_async() {
-    println!("{}", "🔄  LUMINA DATABASE ROLLBACK ENGINE".bright_purple().bold());
+    println!("{}", "🔄  PAKEM DATABASE ROLLBACK ENGINE".bright_purple().bold());
     println!("─────────────────────────────────────────────────────────────────");
 
     let (url, driver) = match resolve_database_url() {
@@ -336,11 +357,11 @@ pub async fn run_rollback_async() {
             }
         }
 
-        // Hapus dari _lumina_migrations
+        // Hapus dari _pakem_migrations
         let del_query = if driver == "postgresql" {
-            "DELETE FROM _lumina_migrations WHERE migration_name = $1"
+            "DELETE FROM _pakem_migrations WHERE migration_name = $1"
         } else {
-            "DELETE FROM _lumina_migrations WHERE migration_name = ?"
+            "DELETE FROM _pakem_migrations WHERE migration_name = ?"
         };
         let _ = sqlx::query(del_query).bind(&file_name).execute(&mut *tx).await;
 
@@ -352,9 +373,9 @@ pub async fn run_rollback_async() {
     println!("🎯 Rollback Batch #{} selesai.", max_batch);
 }
 
-/// Eksekusi Perintah: lumina migrate:status
+/// Eksekusi Perintah: canting migrate:status
 pub async fn run_status_async() {
-    println!("{}", "📊  LUMINA DATABASE MIGRATION STATUS".bright_purple().bold());
+    println!("{}", "📊  PAKEM DATABASE MIGRATION STATUS".bright_purple().bold());
     println!("─────────────────────────────────────────────────────────────────");
 
     let (url, _) = match resolve_database_url() {
@@ -422,9 +443,9 @@ pub async fn run_status_async() {
     println!("─────────────────────────────────────────────────────────────────");
 }
 
-/// Eksekusi Perintah: lumina db:seed
-pub async fn run_seed_async() {
-    println!("{}", "🌱  LUMINA DATABASE SEEDER ENGINE".bright_purple().bold());
+/// Eksekusi Perintah: canting db:seed [--class <Name>]
+pub async fn run_seed_async(class_name: Option<&str>) {
+    println!("{}", "🌱  PAKEM DATABASE SEEDER ENGINE".bright_purple().bold());
     println!("─────────────────────────────────────────────────────────────────");
 
     let (url, driver) = match resolve_database_url() {
@@ -437,6 +458,9 @@ pub async fn run_seed_async() {
 
     println!("  Target Database : {}", mask_credentials(&url).bright_cyan());
     println!("  Driver Engine   : {}", driver.bright_yellow());
+    if let Some(cls) = class_name {
+        println!("  Filter Class    : {}", cls.bright_green().bold());
+    }
 
     let pool = match connect_db(&url).await {
         Ok(p) => p,
@@ -460,8 +484,20 @@ pub async fn run_seed_async() {
 
     entries.sort_by_key(|e| e.path());
 
+    if let Some(target) = class_name {
+        let target_lower = target.to_lowercase();
+        entries.retain(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            name.contains(&target_lower)
+        });
+    }
+
     if entries.is_empty() {
-        println!("  {} Tidak ada berkas .sql ditemukan di database/seeders/.", "ℹ [INFO]".blue());
+        if let Some(cls) = class_name {
+            println!("  {} Tidak ada seeder yang cocok dengan class [{}] di database/seeders/.", "ℹ [INFO]".blue(), cls);
+        } else {
+            println!("  {} Tidak ada berkas .sql ditemukan di database/seeders/.", "ℹ [INFO]".blue());
+        }
         return;
     }
 
@@ -506,9 +542,9 @@ pub async fn run_seed_async() {
     println!("🎯 Sukses: {} berkas seeder berhasil dieksekusi.", count.to_string().bright_green().bold());
 }
 
-/// Eksekusi Perintah: lumina queue:work
+/// Eksekusi Perintah: canting queue:work
 pub async fn run_queue_worker_async(queue_name: &str) {
-    println!("{}", "⚡  LUMINA PERSISTENT QUEUE WORKER".bright_purple().bold());
+    println!("{}", "⚡  PAKEM PERSISTENT QUEUE WORKER".bright_purple().bold());
     println!("─────────────────────────────────────────────────────────────────");
 
     let (url, driver) = match resolve_database_url() {

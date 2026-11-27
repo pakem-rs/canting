@@ -47,7 +47,7 @@ impl AuditReport {
 }
 
 pub fn run_audit() {
-    println!("\n{}", "🛡️  LUMINA SHIELD — Project Security & Configuration Audit".bright_cyan().bold());
+    println!("\n{}", "🛡️  PAKEM SHIELD — Project Security & Configuration Audit".bright_cyan().bold());
     println!("{}", "─────────────────────────────────────────────────────────────────".bright_black());
 
     let mut report = AuditReport::default();
@@ -136,12 +136,35 @@ pub fn run_audit() {
     // ─────────────────────────────────────────────────────────────────────────
     println!("\n{}", "[+] 3. Database & Storage Hardening".bright_purple().bold());
 
-    // Cek password database kosong jika Postgres/MySQL
-    let db_url = get_env_var(&env_content, "DATABASE_URL").unwrap_or_default();
+    // Cek password database kosong jika Postgres/MySQL (mendukung DATABASE_URL maupun DB_*)
+    let db_url = get_env_var(&env_content, "DATABASE_URL")
+        .or_else(|| {
+            let conn = get_env_var(&env_content, "DB_CONNECTION")?;
+            let host = get_env_var(&env_content, "DB_HOST").unwrap_or_else(|| "127.0.0.1".to_string());
+            let db = get_env_var(&env_content, "DB_DATABASE").unwrap_or_default();
+            let user = get_env_var(&env_content, "DB_USERNAME").unwrap_or_default();
+            let pass = get_env_var(&env_content, "DB_PASSWORD").unwrap_or_default();
+            let port = get_env_var(&env_content, "DB_PORT");
+            match conn.to_lowercase().as_str() {
+                "mysql" | "mariadb" => {
+                    let p = port.as_deref().unwrap_or("3306");
+                    let auth = if pass.is_empty() { user } else { format!("{}:{}", user, pass) };
+                    Some(format!("mysql://{}@{}:{}/{}", auth, host, p, db))
+                }
+                "postgres" | "postgresql" | "pgsql" | "pg" => {
+                    let p = port.as_deref().unwrap_or("5432");
+                    let auth = if pass.is_empty() { user } else { format!("{}:{}", user, pass) };
+                    Some(format!("postgres://{}@{}:{}/{}", auth, host, p, db))
+                }
+                _ => Some(format!("sqlite:{}", db)),
+            }
+        })
+        .unwrap_or_default();
+
     if (db_url.starts_with("postgres://") || db_url.starts_with("mysql://")) && (db_url.contains(":@") || db_url.contains("root@")) {
         report.warn("Koneksi database terindikasi tanpa password atau user root default", Some("Gunakan user non-root dan password kuat pada koneksi database"));
     } else if !db_url.is_empty() {
-        report.pass("Konfigurasi string koneksi database memenuhi standar");
+        report.pass("Konfigurasi koneksi database memenuhi standar");
     }
 
     // Cek storage upload permissions
@@ -178,7 +201,7 @@ pub fn run_audit() {
             println!("  {}. {}", i + 1, item);
         }
     } else {
-        println!("\n{}", "✨ Selamat! Proyek Lumina Anda memenuhi seluruh standar keamanan dasar.".bright_green().bold());
+        println!("\n{}", "✨ Selamat! Proyek Pakem Anda memenuhi seluruh standar keamanan dasar.".bright_green().bold());
     }
     println!("{}\n", "─────────────────────────────────────────────────────────────────".bright_black());
 }

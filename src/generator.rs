@@ -9,21 +9,21 @@ use std::process::Command;
 //  HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn is_lumina_project() -> bool {
+fn is_pakem_project() -> bool {
     Path::new("Cargo.toml").exists() && Path::new("src/app").exists()
 }
 
 fn guard_project() -> bool {
-    if !is_lumina_project() {
+    if !is_pakem_project() {
         println!(
             "{}",
-            "❌ Error: This command must be run inside a Lumina project root."
+            "❌ Error: This command must be run inside a Pakem project root."
                 .red()
                 .bold()
         );
         println!(
             "   Hint: Create a project first with {}",
-            "lumina new <name>".bright_cyan()
+            "canting new <name>".bright_cyan()
         );
         false
     } else {
@@ -69,7 +69,7 @@ pub fn cmd_serve() {
     if !guard_project() {
         return;
     }
-    println!("{}", "🚀 Starting Lumina Server...".bright_purple().bold());
+    println!("{}", "🚀 Starting Pakem Server...".bright_purple().bold());
     println!("   Press {} to stop.\n", "Ctrl+C".bright_red());
     let status = Command::new("cargo").arg("run").status();
     if let Err(e) = status {
@@ -83,7 +83,7 @@ pub fn cmd_watch() {
     }
     println!(
         "{}",
-        "👁  Starting Lumina Watch (auto-reload)..."
+        "👁  Starting Pakem Watch (auto-reload)..."
             .bright_purple()
             .bold()
     );
@@ -115,7 +115,7 @@ pub fn cmd_clean(purge: bool) {
         return;
     }
 
-    println!("{}", "✨ Menjalankan Lumina Smart Clean (Optimasi Cache)...".bright_purple().bold());
+    println!("{}", "✨ Menjalankan Pakem Smart Clean (Optimasi Cache)...".bright_purple().bold());
 
     // 1. Jalankan cargo sweep jika terinstall
     let sweep_status = Command::new("cargo")
@@ -138,7 +138,39 @@ pub fn cmd_clean(purge: bool) {
         }
     }
 
-    // 3. Bersihkan log lama di storage/logs
+    // 3. Bersihkan file symbol .pdb lama di target/debug/deps (Windows debug symbols)
+    let deps_path = Path::new("target/debug/deps");
+    if deps_path.exists() {
+        if let Ok(entries) = fs::read_dir(deps_path) {
+            let mut pdb_count = 0;
+            let mut pdb_bytes = 0u64;
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        if ext.eq_ignore_ascii_case("pdb") {
+                            if let Ok(meta) = path.metadata() {
+                                pdb_bytes += meta.len();
+                            }
+                            let _ = fs::remove_file(path);
+                            pdb_count += 1;
+                        }
+                    }
+                }
+            }
+            if pdb_count > 0 {
+                let mb = pdb_bytes as f64 / (1024.0 * 1024.0);
+                println!(
+                    "   {} Berhasil memangkas {} file Windows .pdb debug symbols ({:.1} MB).",
+                    "✅".green(),
+                    pdb_count,
+                    mb
+                );
+            }
+        }
+    }
+
+    // 4. Bersihkan log lama di storage/logs
     let logs_path = Path::new("storage/logs");
     if logs_path.exists() {
         if let Ok(entries) = fs::read_dir(logs_path) {
@@ -147,7 +179,7 @@ pub fn cmd_clean(purge: bool) {
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        if name.starts_with("lumina.log.") {
+                        if name.starts_with("pakem.log.") {
                             count += 1;
                         }
                     }
@@ -179,7 +211,7 @@ pub fn generate_controller(name: &str) {
     let class_full = format!("{}Controller", base);
 
     let code = format!(
-        r#"use lumina::prelude::*;
+        r#"use pakem::prelude::*;
 use crate::app::models::*;
 
 // =========================================================================
@@ -190,7 +222,7 @@ pub struct {class};
 
 impl {class} {{
     /// GET /{lower} — Ambil semua data
-    pub async fn index(req: Request) -> LuminaResult {{
+    pub async fn index(req: Request) -> PakemResult {{
         req.ok(serde_json::json!({{
             "message": "List of {base}",
             "status": "success"
@@ -198,7 +230,7 @@ impl {class} {{
     }}
 
     /// GET /{lower}/paged — Paginasi data otomatis dari ?page=X&per_page=Y
-    pub async fn paginate(req: Request) -> LuminaResult {{
+    pub async fn paginate(req: Request) -> PakemResult {{
         let (page, per_page) = req.pagination();
         req.ok(serde_json::json!({{
             "page": page,
@@ -208,14 +240,14 @@ impl {class} {{
     }}
 
     /// POST /{lower} — Simpan data baru
-    pub async fn store(req: Request) -> LuminaResult {{
+    pub async fn store(req: Request) -> PakemResult {{
         req.created(serde_json::json!({{
             "message": "{base} created successfully"
         }}))
     }}
 
     /// GET /{lower}/:id — Ambil satu detail data
-    pub async fn show(req: Request) -> LuminaResult {{
+    pub async fn show(req: Request) -> PakemResult {{
         let id = req.id_or_fail()?;
         req.ok(serde_json::json!({{
             "id": id,
@@ -224,7 +256,7 @@ impl {class} {{
     }}
 
     /// PUT /{lower}/:id — Update data
-    pub async fn update(req: Request) -> LuminaResult {{
+    pub async fn update(req: Request) -> PakemResult {{
         let id = req.id_or_fail()?;
         req.ok(serde_json::json!({{
             "id": id,
@@ -233,7 +265,7 @@ impl {class} {{
     }}
 
     /// DELETE /{lower}/:id — Hapus data
-    pub async fn destroy(req: Request) -> LuminaResult {{
+    pub async fn destroy(req: Request) -> PakemResult {{
         let id = req.id_or_fail()?;
         req.ok(serde_json::json!({{
             "id": id,
@@ -272,7 +304,7 @@ pub fn generate_model(name: &str) {
     let table = format!("{}s", lower);
 
     let code = format!(
-        r#"use lumina::prelude::*;
+        r#"use pakem::prelude::*;
 use serde::{{Serialize, Deserialize}};
 use sqlx::FromRow;
 
@@ -280,8 +312,8 @@ use sqlx::FromRow;
 //  {class} MODEL (Eloquent / Active Record)
 // =========================================================================
 
-#[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default, LuminaModel)]
-#[lumina(table = "{table}")]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone, Default, PakemModel)]
+#[table("{table}")]
 pub struct {class} {{
     pub id: i64,
     // Add custom fields here, e.g.:
@@ -382,7 +414,7 @@ pub fn generate_crud(name: &str, fields: &[String]) {
 
 fn build_crud_controller(lower: &str, class: &str, _fields: &[String]) -> String {
     format!(
-        r#"use lumina::prelude::*;
+        r#"use pakem::prelude::*;
 use crate::app::models::{lower}::{class};
 
 pub struct {class}Controller;
@@ -448,7 +480,7 @@ pub fn generate_auth() {
             .bold()
     );
 
-    let auth_controller = r#"use lumina::prelude::*;
+    let auth_controller = r#"use pakem::prelude::*;
 use serde::Deserialize;
 
 pub struct AuthController;
@@ -648,10 +680,10 @@ services:
       - APP_PORT={port}
       - APP_URL=http://{raw_name}
     networks:
-      - lumina-net
+      - pakem-net
 
 networks:
-  lumina-net:
+  pakem-net:
     driver: bridge
 "#,
         safe_name = safe_name,
@@ -662,7 +694,7 @@ networks:
 
     // 4. deploy/nginx.conf (aaPanel / Nginx ready reverse proxy)
     let nginx_conf = format!(
-        r#"# Lumina Framework — Nginx / aaPanel Reverse Proxy Configuration
+        r#"# Pakem Framework — Nginx / aaPanel Reverse Proxy Configuration
 # Domain: {raw_name} -> Container Port: {port}
 
 server {{
@@ -736,7 +768,7 @@ pub fn generate_nginx() {
     let project_name = get_project_name();
 
     let nginx_conf = format!(
-        r#"# Lumina Framework — Nginx Reverse Proxy Configuration
+        r#"# Pakem Framework — Nginx Reverse Proxy Configuration
 # Place this file in /etc/nginx/sites-available/{name}
 # Then: sudo ln -s /etc/nginx/sites-available/{name} /etc/nginx/sites-enabled/
 # sudo nginx -t && sudo systemctl reload nginx
@@ -803,7 +835,7 @@ pub fn generate_supervisor() {
     let project_name = get_project_name();
 
     let supervisor_conf = format!(
-        r#"; Lumina Framework — Supervisor Configuration
+        r#"; Pakem Framework — Supervisor Configuration
 ; Place this file in /etc/supervisor/conf.d/{name}.conf
 ; Then: sudo supervisorctl reread && sudo supervisorctl update
 
@@ -850,7 +882,7 @@ fn get_project_name() -> String {
             }
         }
     }
-    "lumina-app".to_string()
+    "pakem-app".to_string()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -899,7 +931,7 @@ crate-type = ["cdylib"]
     let lib_rs = format!(
         r#"use std::mem;
 
-/// Alokasi buffer memori heap guest untuk transfer data dari host Lumina.
+/// Alokasi buffer memori heap guest untuk transfer data dari host Pakem.
 #[no_mangle]
 pub extern "C" fn alloc(len: i32) -> i32 {{
     let mut buf = Vec::with_capacity(len as usize);
@@ -943,13 +975,13 @@ pub extern "C" fn transform(ptr: i32, len: i32) -> i64 {{
 
     // 3. README.md
     let readme = format!(
-        r#"# Lumina WASM Plugin: {}
+        r#"# Pakem WASM Plugin: {}
 
-Plugin WebAssembly untuk Lumina Framework.
+Plugin WebAssembly untuk Pakem Framework.
 
 ## Cara Kompilasi:
 ```bash
-lumina plugin:build {}
+canting plugin:build {}
 ```
 Binary output `.wasm` akan otomatis disalin ke `plugins/{}.wasm`.
 
@@ -970,11 +1002,11 @@ Binary output `.wasm` akan otomatis disalin ke `plugins/{}.wasm`.
             .bold()
     );
     println!("👉 Next step: Compile the plugin with:");
-    println!("   {}\n", format!("lumina plugin:build {}", clean_name).bright_cyan());
+    println!("   {}\n", format!("canting plugin:build {}", clean_name).bright_cyan());
 }
 
 pub fn cmd_plugin_build(name: Option<&str>) {
-    println!("{}", "🔨 Compiling Lumina WebAssembly Plugin(s)...".bright_blue().bold());
+    println!("{}", "🔨 Compiling Pakem WebAssembly Plugin(s)...".bright_blue().bold());
 
     let plugins_to_build: Vec<String> = if let Some(n) = name {
         vec![n.trim().to_lowercase().replace("-", "_")]
@@ -995,7 +1027,7 @@ pub fn cmd_plugin_build(name: Option<&str>) {
 
     if plugins_to_build.is_empty() {
         println!("{}", "⚠️  No plugin crates found to compile.".yellow());
-        println!("💡 Tip: Create a new plugin with: {}", "lumina plugin:new <name>".bright_cyan());
+        println!("💡 Tip: Create a new plugin with: {}", "canting plugin:new <name>".bright_cyan());
         return;
     }
 
@@ -1067,7 +1099,7 @@ pub fn cmd_plugin_build(name: Option<&str>) {
 }
 
 pub fn cmd_plugin_list() {
-    println!("{}", "🔍 Scanning for Lumina Plugins & Indonesian Scripts...\n".bright_blue().bold());
+    println!("{}", "🔍 Scanning for Pakem Plugins & Indonesian Scripts...\n".bright_blue().bold());
 
     struct Item {
         name: String,
@@ -1112,7 +1144,7 @@ pub fn cmd_plugin_list() {
                 let status = if wasm_exists {
                     "Configured & Compiled".to_string()
                 } else {
-                    "Not built (run lumina plugin:build)".to_string()
+                    "Not built (run canting plugin:build)".to_string()
                 };
                 items.push(Item {
                     name: format!("{}/ (Crate)", folder_name),
@@ -1148,7 +1180,7 @@ pub fn cmd_plugin_list() {
 
     if items.is_empty() {
         println!("{}", "ℹ️  No WASM plugins or Indonesian Scripts found.".yellow());
-        println!("💡 Tip: Create a new plugin with: {}", "lumina plugin:new <name>".bright_cyan());
+        println!("💡 Tip: Create a new plugin with: {}", "canting plugin:new <name>".bright_cyan());
         println!("💡 Tip: Place .is scripts in folder {} or {}\n", "app/scripts/".bright_cyan(), "plugins/".bright_cyan());
         return;
     }
@@ -1160,6 +1192,58 @@ pub fn cmd_plugin_list() {
     }
     println!("{:-<32} {:-<15} {:-<12} {:-<35}", "", "", "", "");
     println!("Total detected items: {}\n", items.len());
+}
+
+pub fn cmd_plugin_metrics() {
+    println!("{}", "📊 Pakem WASM Sandbox & Plugin Metrics Dashboard\n".bright_cyan().bold());
+
+    let manager = pakem::core::sandbox::PakemPluginManager::new();
+    let loaded = manager.load_directory("plugins").unwrap_or(0);
+
+    let metrics = manager.get_metrics();
+    let stats = manager.plugin_stats();
+
+    println!("Total WASM Modules Loaded : {}", loaded.to_string().bright_green().bold());
+    println!("Script Modules Cached     : {}\n", metrics.is_scripts_count.to_string().bright_yellow().bold());
+
+    if loaded == 0 {
+        println!("{}", "ℹ️  Tidak ada biner .wasm aktif di direktori plugins/.".yellow());
+        println!("💡 Tip: Buat plugin baru dengan: {}", "canting plugin:new <name>".bright_cyan());
+        println!("💡 Tip: Kompilasi plugin dengan: {}\n", "canting plugin:build".bright_cyan());
+        return;
+    }
+
+    println!("┌───────────────────────┬──────────────┬──────────────┬──────────────┬──────────────┐");
+    println!("│ {:<21} │ {:<12} │ {:<12} │ {:<12} │ {:<12} │", "PLUGIN NAME", "CALLS COUNT", "ERRORS COUNT", "AVG DURATION", "STATUS");
+    println!("├───────────────────────┼──────────────┼──────────────┼──────────────┼──────────────┤");
+
+    for name in &metrics.wasm_plugins {
+        let stat = stats.iter().find(|s| &s.name == name);
+        let calls = stat.map(|s| s.calls_count).unwrap_or(0);
+        let errors = stat.map(|s| s.errors_count).unwrap_or(0);
+        let avg_dur = stat.map(|s| format!("{:.2}µs", s.avg_duration_us)).unwrap_or_else(|| "0.00µs".to_string());
+        let status = if errors > 0 { "Warning ⚠️" } else { "Healthy ✅" };
+
+        println!("│ {:<21} │ {:<12} │ {:<12} │ {:<12} │ {:<12} │", name.bright_green(), calls, errors, avg_dur, status);
+    }
+
+    println!("└───────────────────────┴──────────────┴──────────────┴──────────────┴──────────────┘\n");
+}
+
+pub fn cmd_plugin_reload() {
+    println!("{}", "🔄 Reloading Pakem WASM Plugins (Zero-Downtime Hot-Reload)...".bright_purple().bold());
+    let start = std::time::Instant::now();
+
+    let manager = pakem::core::sandbox::PakemPluginManager::new();
+    match manager.reload("plugins") {
+        Ok(count) => {
+            let dur = start.elapsed().as_secs_f64() * 1000.0;
+            println!("{} Berhasil memuat ulang {} plugin dalam {:.2}ms tanpa downtime! ⚡\n", "✅ [Reload Success]".green().bold(), count.to_string().bright_yellow().bold(), dur);
+        }
+        Err(e) => {
+            println!("{} Gagal memuat ulang plugin: {}\n", "❌ [Reload Failed]".red().bold(), e);
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1187,11 +1271,11 @@ pub fn generate_factory(name: &str) {
     let _ = fs::create_dir_all("database/factories");
 
     let code = format!(
-        r#"use lumina::prelude::*;
+        r#"use pakem::prelude::*;
 use crate::app::models::{snake_model}::{model_name};
 
 // =========================================================================
-//  {factory_name} (Lumina Model Factory)
+//  {factory_name} (Pakem Model Factory)
 // =========================================================================
 
 pub struct {factory_name};
@@ -1241,12 +1325,91 @@ impl HasFactory<{factory_name}> for {model_name} {{
             append_to_file(mod_file, &mod_line);
         }
     } else {
-        let _ = fs::write(mod_file, format!("// Lumina Database Factories\n{}", mod_line));
+        let _ = fs::write(mod_file, format!("// Pakem Database Factories\n{}", mod_line));
     }
 
     print_success(&format!("Factory created: {}", file_path.bright_green()));
     print_hint(&format!("Use in seeder/test: {}::new().count(10).create(req.db()).await", factory_name));
     print_hint(&format!("Or shortcut on model: {}::factory().count(10).create(req.db()).await\n", model_name));
+}
+
+pub fn generate_seeder(name: &str) {
+    if !guard_project() {
+        return;
+    }
+    println!("{}", "🌱 Generating Database Seeder Class...".bright_purple().bold());
+
+    let clean = name.trim_end_matches(".rs").trim();
+    let seeder_name = if clean.ends_with("Seeder") {
+        clean.to_string()
+    } else {
+        format!("{}Seeder", capitalize_first(clean))
+    };
+
+    let file_base = to_snake_case(&seeder_name);
+    let seeder_dir = "src/database/seeders";
+    let _ = fs::create_dir_all(seeder_dir);
+
+    let file_path = format!("{}/{}.rs", seeder_dir, file_base);
+    if Path::new(&file_path).exists() {
+        println!("{} Seeder {} already exists!", "❌".red(), file_path);
+        return;
+    }
+
+    let code = format!(
+        r#"use pakem::prelude::*;
+
+// =========================================================================
+//  {seeder_name} (Pakem Database Seeder Class)
+// =========================================================================
+
+#[derive(Default)]
+pub struct {seeder_name};
+
+#[async_trait::async_trait]
+impl Seeder for {seeder_name} {{
+    /// Eksekusi pengisian data awal atau data pengujian
+    async fn run(&self, db: &DatabasePool) -> Result<(), sqlx::Error> {{
+        println!("🌱 Menjalankan Seeder: {seeder_name}");
+
+        // Contoh: Membuat 25 data realistis menggunakan Model Factory & Faker
+        // User::factory()
+        //     .count(25)
+        //     .state(|u| u.is_active = true)
+        //     .create(db)
+        //     .await?;
+
+        Ok(())
+    }}
+}}
+"#,
+        seeder_name = seeder_name
+    );
+
+    if let Err(e) = fs::write(&file_path, code) {
+        println!("{} Failed to write seeder file: {}", "❌".red(), e);
+        return;
+    }
+
+    let mod_file = "src/database/seeders/mod.rs";
+    let mod_line = format!("pub mod {};\npub use {}::{};\n", file_base, file_base, seeder_name);
+    if Path::new(mod_file).exists() {
+        let existing = fs::read_to_string(mod_file).unwrap_or_default();
+        if !existing.contains(&format!("pub mod {};", file_base)) {
+            append_to_file(mod_file, &mod_line);
+        }
+    } else {
+        let _ = fs::write(mod_file, format!("// Pakem Database Seeders\n{}", mod_line));
+    }
+
+    let sql_dir = "database/seeders";
+    let _ = fs::create_dir_all(sql_dir);
+    let sql_path = format!("{}/{}_{}.sql", sql_dir, timestamp(), file_base);
+    let sql_content = format!("-- Seeder SQL template untuk {}\n-- INSERT INTO table (col) VALUES ('val');\n", seeder_name);
+    let _ = fs::write(&sql_path, sql_content);
+
+    print_success(&format!("Seeder created: {}", file_path.bright_green()));
+    print_hint(&format!("Run this seeder with: canting db:seed --class {}\n", seeder_name));
 }
 
 pub fn generate_view(name: &str) {
@@ -1302,7 +1465,7 @@ r#"@extends('layouts.app')
     <div class="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
         <h1 class="text-2xl font-bold text-gray-800 dark:text-white mb-4">{title}</h1>
         <p class="text-gray-600 dark:text-gray-300">
-            Halaman view baru Lumina: <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-purple-600 dark:text-purple-400 font-mono text-sm">{view_dot}</code>
+            Halaman view baru Pakem: <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-purple-600 dark:text-purple-400 font-mono text-sm">{view_dot}</code>
         </p>
     </div>
 </div>
@@ -1353,7 +1516,7 @@ pub fn generate_job(name: &str) {
 
     let content = format!(
 r#"use async_trait::async_trait;
-use lumina::prelude::*;
+use pakem::prelude::*;
 use serde::{{Deserialize, Serialize}};
 use serde_json::Value;
 
@@ -1402,7 +1565,7 @@ impl Job for {job_name} {{
             append_to_file(mod_file, &mod_line);
         }
     } else {
-        let _ = fs::write(mod_file, format!("// Lumina Background Jobs Registry\n{}", mod_line));
+        let _ = fs::write(mod_file, format!("// Pakem Background Jobs Registry\n{}", mod_line));
     }
 
     print_success(&format!("Job class created: {}", file_path.bright_green()));
@@ -1413,7 +1576,7 @@ pub fn generate_live(name: &str) {
     if !guard_project() {
         return;
     }
-    println!("{}", "⚡ Generating Lumina Live Component...".bright_purple().bold());
+    println!("{}", "⚡ Generating Pakem Live Component...".bright_purple().bold());
 
     let comp_name = capitalize_first(name);
     let snake = to_snake_case(&comp_name);
@@ -1433,11 +1596,11 @@ pub fn generate_live(name: &str) {
 
     let comp_content = format!(
 r#"use async_trait::async_trait;
-use lumina::prelude::*;
+use pakem::prelude::*;
 use serde::{{Deserialize, Serialize}};
 use serde_json::Value;
 
-/// Komponen Reaktif Lumina Live: {comp_name}
+/// Komponen Reaktif Pakem Live: {comp_name}
 /// Mendukung Tri-Dialect: `kilat:*` (Indonesia), `live:*` (Universal), `wire:*` (Laravel Legacy).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct {comp_name} {{
@@ -1483,7 +1646,7 @@ impl LiveComponent for {comp_name} {{
 r#"<div class="p-6 bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md mx-auto my-6 text-center">
     <div class="mb-4">
         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
-            ⚡ Lumina Live ({comp_name})
+            ⚡ Pakem Live ({comp_name})
         </span>
     </div>
 
@@ -1525,7 +1688,7 @@ r#"<div class="p-6 bg-white rounded-2xl shadow-xl border border-slate-100 max-w-
             append_to_file(mod_file, &mod_line);
         }
     } else {
-        let _ = fs::write(mod_file, format!("// Lumina Live Components Registry\n{}", mod_line));
+        let _ = fs::write(mod_file, format!("// Pakem Live Components Registry\n{}", mod_line));
     }
 
     print_success(&format!("Live component created: {}", comp_path.bright_green()));
@@ -1533,3 +1696,834 @@ r#"<div class="p-6 bg-white rounded-2xl shadow-xl border border-slate-100 max-w-
     print_hint(&format!("Embed in any Blade template: @kilat('{}') or @live('{}')\n", snake, snake));
 }
 
+
+/// Generate complete Pakem Aurora starter kit
+pub fn generate_aurora() {
+    if !guard_project() {
+        return;
+    }
+    println!(
+        "{}",
+        "⚡ Installing Pakem Aurora Starter Kit..."
+            .bright_purple()
+            .bold()
+    );
+
+    let view_dirs = [
+        "resources/views/aurora/layouts",
+        "resources/views/aurora/auth",
+        "resources/views/aurora/dashboard",
+        "resources/views/aurora/profile",
+        "src/app/controllers/aurora",
+        "database/migrations",
+        "database/seeders",
+    ];
+
+    for dir in view_dirs {
+        let _ = fs::create_dir_all(dir);
+    }
+
+    let guest_layout = include_str!("../templates/views/aurora/layouts/guest.blade.rs");
+    let app_layout = include_str!("../templates/views/aurora/layouts/app.blade.rs");
+    let login_view = include_str!("../templates/views/aurora/auth/login.blade.rs");
+    let register_view = include_str!("../templates/views/aurora/auth/register.blade.rs");
+    let dashboard_view = include_str!("../templates/views/aurora/dashboard/index.blade.rs");
+    let profile_view = include_str!("../templates/views/aurora/profile/edit.blade.rs");
+
+    let auth_ctrl = include_str!("../templates/controllers/aurora/auth_controller.rs");
+    let dash_ctrl = include_str!("../templates/controllers/aurora/dashboard_controller.rs");
+    let prof_ctrl = include_str!("../templates/controllers/aurora/profile_controller.rs");
+    let mod_ctrl = include_str!("../templates/controllers/aurora/mod.rs");
+
+    let aurora_migration = r#"-- Users Table Migration for Pakem Aurora (RBAC Ready)
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'member',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+"#;
+
+    let aurora_seeder = r#"-- Pakem Aurora: Default RBAC Users Seeder
+-- Akun Bawaan untuk pengujian hak akses peran:
+-- 1. admin@pakem.my.id   (Administrator) | Password: password123
+-- 2. editor@pakem.my.id  (Editor)        | Password: password123
+-- 3. member@pakem.my.id  (Member)        | Password: password123
+
+DELETE FROM users WHERE email IN ('admin@pakem.my.id', 'editor@pakem.my.id', 'member@pakem.my.id');
+
+INSERT INTO users (name, email, password, role) VALUES 
+('Administrator Pakem', 'admin@pakem.my.id', '$2b$12$9PoqqsF9tgdGa57MX.JIA.ejM3WzhUR.2qslio9xbRzxVWnB9rhSu', 'admin'),
+('Editor Konten', 'editor@pakem.my.id', '$2b$12$9PoqqsF9tgdGa57MX.JIA.ejM3WzhUR.2qslio9xbRzxVWnB9rhSu', 'editor'),
+('Member Komunitas', 'member@pakem.my.id', '$2b$12$9PoqqsF9tgdGa57MX.JIA.ejM3WzhUR.2qslio9xbRzxVWnB9rhSu', 'member');
+"#;
+
+    let files = [
+        ("resources/views/aurora/layouts/guest.blade.rs", guest_layout),
+        ("resources/views/aurora/layouts/app.blade.rs", app_layout),
+        ("resources/views/aurora/auth/login.blade.rs", login_view),
+        ("resources/views/aurora/auth/register.blade.rs", register_view),
+        ("resources/views/aurora/dashboard/index.blade.rs", dashboard_view),
+        ("resources/views/aurora/profile/edit.blade.rs", profile_view),
+        ("src/app/controllers/aurora/auth_controller.rs", auth_ctrl),
+        ("src/app/controllers/aurora/dashboard_controller.rs", dash_ctrl),
+        ("src/app/controllers/aurora/profile_controller.rs", prof_ctrl),
+        ("src/app/controllers/aurora/mod.rs", mod_ctrl),
+        ("database/seeders/0001_aurora_users_seeder.sql", aurora_seeder),
+        ("database/migrations/0001_create_users_table.sql", aurora_migration),
+    ];
+
+    for (path, content) in files {
+        if let Err(e) = fs::write(path, content) {
+            println!("  ❌ Failed to write {}: {}", path, e);
+        } else {
+            print_success(&format!("Generated {}", path));
+        }
+    }
+
+    println!("\n{}", "🎉 Pakem Aurora Starter Kit installed successfully!".bright_green().bold());
+    println!("{}", "Langkah selanjutnya untuk migrasi & seeding akun bawaan:".bright_cyan());
+    println!("  1. Jalankan Migrasi : {}", "canting migrate".yellow());
+    println!("  2. Jalankan Seeder  : {}", "canting db:seed".yellow());
+    println!("  3. Daftarkan router :");
+    println!("     {}", "router.merge(pakem::app::controllers::aurora::routes())".yellow());
+    println!("\n{}", "🔐 Akun Bawaan (Default Accounts - Password: password123):".bright_magenta().bold());
+    println!("  👑 Admin  : admin@pakem.my.id  (Role: admin)");
+    println!("  ✍️  Editor : editor@pakem.my.id (Role: editor)");
+    println!("  👤 Member : member@pakem.my.id (Role: member)");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  OPENAPI & POSTMAN EXPORTER
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+struct ScannedRoute {
+    method: String,
+    path: String,
+    summary: Option<String>,
+    description: Option<String>,
+    tags: Vec<String>,
+    deprecated: bool,
+}
+
+fn collect_rs_files(dir: &Path, list: &mut Vec<std::path::PathBuf>) {
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_dir() {
+                collect_rs_files(&p, list);
+            } else if p.extension().map_or(false, |ext| ext == "rs") {
+                list.push(p);
+            }
+        }
+    }
+}
+
+fn scan_routes_in_src() -> Vec<ScannedRoute> {
+    let mut files = Vec::new();
+    let src_dir = Path::new("src");
+    if src_dir.exists() {
+        collect_rs_files(src_dir, &mut files);
+    }
+
+    let mut routes = Vec::new();
+    let re_route = regex::Regex::new(r#"\.(get|post|put|delete|patch)\(\s*"([^"]+)""#).unwrap();
+    let re_summary = regex::Regex::new(r#"\.summary\(\s*"([^"]+)""#).unwrap();
+    let re_desc = regex::Regex::new(r#"\.description\(\s*"([^"]+)""#).unwrap();
+    let re_tag = regex::Regex::new(r#"\.tag\(\s*"([^"]+)""#).unwrap();
+
+    for file_path in files {
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            for cap in re_route.captures_iter(&content) {
+                let method = cap[1].to_uppercase();
+                let path = cap[2].to_string();
+
+                let mut summary = None;
+                let mut description = None;
+                let mut tags = Vec::new();
+                let mut deprecated = false;
+
+                if let Some(match_pos) = content.find(&format!(".{}(\"{}\"", cap[1].to_lowercase(), path)) {
+                    let slice = &content[match_pos..match_pos.saturating_add(300).min(content.len())];
+                    if let Some(s) = re_summary.captures(slice) {
+                        summary = Some(s[1].to_string());
+                    }
+                    if let Some(d) = re_desc.captures(slice) {
+                        description = Some(d[1].to_string());
+                    }
+                    if let Some(t) = re_tag.captures(slice) {
+                        tags.push(t[1].to_string());
+                    }
+                    if slice.contains(".deprecated()") {
+                        deprecated = true;
+                    }
+                }
+
+                routes.push(ScannedRoute {
+                    method,
+                    path,
+                    summary,
+                    description,
+                    tags,
+                    deprecated,
+                });
+            }
+        }
+    }
+
+    routes
+}
+
+fn build_openapi_spec(routes: &[ScannedRoute], title: &str, version: &str) -> serde_json::Value {
+    let mut paths = serde_json::Map::new();
+
+    for r in routes {
+        let (openapi_path, path_params) = normalize_cli_path(&r.path);
+        let path_obj = paths.entry(openapi_path).or_insert_with(|| serde_json::json!({}));
+
+        let method_lower = r.method.to_lowercase();
+        let mut parameters = Vec::new();
+        for param in path_params {
+            parameters.push(serde_json::json!({
+                "name": param,
+                "in": "path",
+                "required": true,
+                "description": format!("Path parameter {}", param),
+                "schema": {
+                    "type": if param.ends_with("_id") || param == "id" { "integer" } else { "string" }
+                }
+            }));
+        }
+
+        let mut op = serde_json::json!({
+            "summary": r.summary.clone().unwrap_or_else(|| format!("{} {}", r.method, r.path)),
+            "description": r.description.clone().unwrap_or_default(),
+            "tags": r.tags,
+            "deprecated": r.deprecated,
+            "parameters": parameters,
+            "responses": {
+                "200": {
+                    "description": "Operasi Berhasil",
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "success": { "type": "boolean" },
+                                    "data": { "type": "object" }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        if matches!(method_lower.as_str(), "post" | "put" | "patch") {
+            op["requestBody"] = serde_json::json!({
+                "required": true,
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            });
+        }
+
+        path_obj[method_lower] = op;
+    }
+
+    serde_json::json!({
+        "openapi": "3.0.3",
+        "info": {
+            "title": title,
+            "version": version,
+            "description": "REST API documentation generated automatically by Canting CLI."
+        },
+        "servers": [
+            {
+                "url": "/",
+                "description": "Default Server"
+            }
+        ],
+        "paths": paths
+    })
+}
+
+fn normalize_cli_path(path: &str) -> (String, Vec<String>) {
+    let mut params = Vec::new();
+    let segments: Vec<String> = path
+        .split('/')
+        .map(|segment| {
+            if let Some(param) = segment.strip_prefix(':') {
+                params.push(param.to_string());
+                format!("{{{}}}", param)
+            } else if let Some(param) = segment.strip_prefix('*') {
+                params.push(param.to_string());
+                format!("{{{}}}", param)
+            } else if segment.starts_with('{') && segment.ends_with('}') {
+                let param = &segment[1..segment.len() - 1];
+                params.push(param.to_string());
+                segment.to_string()
+            } else {
+                segment.to_string()
+            }
+        })
+        .collect();
+
+    (segments.join("/"), params)
+}
+
+fn cli_json_to_yaml(value: &serde_json::Value, indent: usize) -> String {
+    let pad = "  ".repeat(indent);
+    match value {
+        serde_json::Value::Null => "null".to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::String(s) => {
+            if s.contains('\n') || s.contains(':') || s.contains('#') || s.contains(' ') || s.is_empty() {
+                format!("\"{}\"", s.replace('"', "\\\""))
+            } else {
+                s.clone()
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            if arr.is_empty() {
+                "[]".to_string()
+            } else {
+                let mut out = String::new();
+                for item in arr {
+                    out.push('\n');
+                    out.push_str(&format!("{}- {}", pad, cli_json_to_yaml(item, indent + 1).trim_start()));
+                }
+                out
+            }
+        }
+        serde_json::Value::Object(map) => {
+            if map.is_empty() {
+                "{}".to_string()
+            } else {
+                let mut out = String::new();
+                for (k, v) in map {
+                    out.push('\n');
+                    match v {
+                        serde_json::Value::Object(_) | serde_json::Value::Array(_) => {
+                            out.push_str(&format!("{}{}:{}", pad, k, cli_json_to_yaml(v, indent + 1)));
+                        }
+                        _ => {
+                            out.push_str(&format!("{}{}: {}", pad, k, cli_json_to_yaml(v, indent)));
+                        }
+                    }
+                }
+                out
+            }
+        }
+    }
+}
+
+pub fn generate_openapi(output: &str, format: &str, title: &str, version: &str) {
+    if !guard_project() {
+        return;
+    }
+    println!("{}", "📖 Scanning project routes for OpenAPI generation...".bright_cyan());
+
+    let routes = scan_routes_in_src();
+    println!("   Found {} endpoints.", routes.len().to_string().yellow());
+
+    let spec = build_openapi_spec(&routes, title, version);
+
+    if format.to_lowercase() == "yaml" || format.to_lowercase() == "yml" {
+        let yaml = cli_json_to_yaml(&spec, 0);
+        if let Err(e) = fs::write(output, yaml) {
+            println!("  ❌ Failed to write {}: {}", output, e);
+            return;
+        }
+    } else {
+        let json = serde_json::to_string_pretty(&spec).unwrap_or_default();
+        if let Err(e) = fs::write(output, json) {
+            println!("  ❌ Failed to write {}: {}", output, e);
+            return;
+        }
+    }
+
+    print_success(&format!("OpenAPI v3.0 specification generated successfully at {}", output.bright_green()));
+}
+
+pub fn export_postman(output: &str, name: &str, version: &str) {
+    if !guard_project() {
+        return;
+    }
+    println!("{}", "📮 Scanning project routes for Postman collection export...".bright_cyan());
+
+    let routes = scan_routes_in_src();
+    println!("   Found {} endpoints.", routes.len().to_string().yellow());
+
+    let mut items = Vec::new();
+    for r in &routes {
+        let path_segments: Vec<&str> = r.path.trim_matches('/').split('/').collect();
+        let mut item = serde_json::json!({
+            "name": r.summary.clone().unwrap_or_else(|| format!("{} {}", r.method, r.path)),
+            "request": {
+                "method": r.method,
+                "header": [
+                    { "key": "Accept", "value": "application/json", "type": "text" },
+                    { "key": "Content-Type", "value": "application/json", "type": "text" }
+                ],
+                "url": {
+                    "raw": format!("{{{{base_url}}}}{}", r.path),
+                    "host": ["{{base_url}}"],
+                    "path": path_segments
+                },
+                "description": r.description.clone().unwrap_or_default()
+            },
+            "response": []
+        });
+
+        if matches!(r.method.as_str(), "POST" | "PUT" | "PATCH") {
+            item["request"]["body"] = serde_json::json!({
+                "mode": "raw",
+                "raw": "{\n  \n}",
+                "options": {
+                    "raw": { "language": "json" }
+                }
+            });
+        }
+        items.push(item);
+    }
+
+    let postman = serde_json::json!({
+        "info": {
+            "_postman_id": uuid::Uuid::new_v4().to_string(),
+            "name": name,
+            "description": format!("Collection exported from Pakem project (v{})", version),
+            "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        },
+        "item": items,
+        "variable": [
+            {
+                "key": "base_url",
+                "value": "http://127.0.0.1:3000",
+                "type": "string"
+            }
+        ]
+    });
+
+    let json = serde_json::to_string_pretty(&postman).unwrap_or_default();
+    if let Err(e) = fs::write(output, json) {
+        println!("  ❌ Failed to write {}: {}", output, e);
+        return;
+    }
+
+    print_success(&format!("Postman collection exported successfully at {}", output.bright_green()));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  AI CONTEXT & SKILLS GENERATORS
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn to_pascal_case(s: &str) -> String {
+    let clean = s.trim().replace('-', "_");
+    clean
+        .split('_')
+        .filter(|part| !part.is_empty())
+        .map(capitalize_first)
+        .collect()
+}
+
+fn to_snake_name(s: &str) -> String {
+    let mut result = String::new();
+    for (i, c) in s.trim().chars().enumerate() {
+        if c == '-' || c == ' ' {
+            result.push('_');
+        } else if c.is_uppercase() {
+            if i > 0 && !result.ends_with('_') {
+                result.push('_');
+            }
+            result.push(c.to_ascii_lowercase());
+        } else {
+            result.push(c);
+        }
+    }
+    result
+}
+
+pub fn generate_ai_context(target: &str, force: bool) {
+    generate_ai_context_at(Path::new("."), target, force);
+}
+
+pub fn generate_ai_context_at(base: &Path, target: &str, force: bool) {
+    if !base.join("Cargo.toml").exists() || !base.join("src/app").exists() {
+        println!(
+            "{}",
+            "❌ Error: This command must be run inside a Pakem project root."
+                .red()
+                .bold()
+        );
+        return;
+    }
+
+    let app_name = fs::read_to_string(base.join("Cargo.toml"))
+        .ok()
+        .and_then(|content| {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if trimmed.starts_with("name =") {
+                    let parts: Vec<&str> = trimmed.split('=').collect();
+                    if parts.len() >= 2 {
+                        let name = parts[1].trim().trim_matches('"').trim_matches('\'');
+                        return Some(name.to_string());
+                    }
+                }
+            }
+            None
+        })
+        .unwrap_or_else(|| "PakemApp".to_string());
+
+    println!(
+        "{}",
+        format!("🤖 Syncing AI Agent Context for [{}]...", app_name)
+            .bright_purple()
+            .bold()
+    );
+
+    let target_lower = target.to_lowercase();
+    let generate_all = target_lower == "all" || target_lower.is_empty();
+
+    let mut generated_count = 0;
+
+    let write_file_safe = |rel_path: &str, content: String, label: &str| -> bool {
+        let p = base.join(rel_path);
+        if p.exists() && !force {
+            println!(
+                "  {} {} already exists. (Use {} to overwrite)",
+                "⚠️ ".yellow(),
+                rel_path.bright_yellow(),
+                "--force".bright_cyan()
+            );
+            return false;
+        }
+
+        if let Some(parent) = p.parent() {
+            if !parent.exists() {
+                let _ = fs::create_dir_all(parent);
+            }
+        }
+
+        if let Err(e) = fs::write(&p, content) {
+            println!("  ❌ Failed to write {}: {}", rel_path, e);
+            false
+        } else {
+            print_success(&format!("{} [{}]", rel_path.bright_green(), label));
+            true
+        }
+    };
+
+    if generate_all || target_lower == "agents" || target_lower == "universal" {
+        if write_file_safe(
+            "AGENTS.md",
+            crate::ai_context::generate_agents_md(&app_name),
+            "Universal AI Standard",
+        ) {
+            generated_count += 1;
+        }
+    }
+
+    if generate_all || target_lower == "cursor" {
+        if write_file_safe(
+            ".cursorrules",
+            crate::ai_context::generate_cursorrules(&app_name),
+            "Cursor IDE Agent",
+        ) {
+            generated_count += 1;
+        }
+    }
+
+    if generate_all || target_lower == "copilot" || target_lower == "github" {
+        if write_file_safe(
+            ".github/copilot-instructions.md",
+            crate::ai_context::generate_copilot_instructions(&app_name),
+            "GitHub Copilot Workspace",
+        ) {
+            generated_count += 1;
+        }
+    }
+
+    if generate_all || target_lower == "claude" {
+        if write_file_safe(
+            "CLAUDE.md",
+            crate::ai_context::generate_claude_md(&app_name),
+            "Anthropic Claude Code",
+        ) {
+            generated_count += 1;
+        }
+    }
+
+    println!(
+        "\n  ✨ Synchronized {} AI context file(s) successfully!",
+        generated_count
+    );
+    print_hint("Open your project in Cursor, Copilot, Antigravity, or Claude Code to start coding with zero hallucinations.");
+}
+
+pub fn generate_ai_skill(name: &str, fields: &[String], provider: &str) {
+    generate_ai_skill_at(Path::new("."), name, fields, provider);
+}
+
+pub fn generate_ai_skill_at(base: &Path, name: &str, fields: &[String], _provider: &str) {
+    if !base.join("Cargo.toml").exists() || !base.join("src/app").exists() {
+        println!(
+            "{}",
+            "❌ Error: This command must be run inside a Pakem project root."
+                .red()
+                .bold()
+        );
+        return;
+    }
+
+    let pascal_name = to_pascal_case(name);
+    let snake_name = to_snake_name(name);
+
+    println!(
+        "{}",
+        format!("🧠 Generating AI Skill & Tool Stub for [{}]...", pascal_name)
+            .bright_purple()
+            .bold()
+    );
+
+    let is_reverse_engineer = snake_name.contains("reverse");
+
+    // Parse fields or use default
+    let parsed_fields: Vec<(String, String)> = if is_reverse_engineer {
+        vec![
+            ("target_url".to_string(), "String".to_string()),
+            ("html_source".to_string(), "String".to_string()),
+            ("component_name".to_string(), "String".to_string()),
+            ("extract_reactive".to_string(), "bool".to_string()),
+        ]
+    } else if fields.is_empty() {
+        vec![
+            ("query".to_string(), "String".to_string()),
+            ("limit".to_string(), "i64".to_string()),
+        ]
+    } else {
+        fields
+            .iter()
+            .map(|f| {
+                let parts: Vec<&str> = f.split(':').collect();
+                if parts.len() == 2 {
+                    let field_name = parts[0].to_string();
+                    let field_type = match parts[1].to_lowercase().as_str() {
+                        "int" | "i64" | "integer" => "i64",
+                        "float" | "f64" | "double" => "f64",
+                        "bool" | "boolean" => "bool",
+                        _ => "String",
+                    };
+                    (field_name, field_type.to_string())
+                } else {
+                    (f.clone(), "String".to_string())
+                }
+            })
+            .collect()
+    };
+
+    // 1. Ensure directories exist
+    let tools_dir = base.join("app/ai/tools");
+    let skills_dir = base.join(format!("app/ai/skills/{}", snake_name));
+    let service_dir = base.join("src/app/services/ai");
+
+    fs::create_dir_all(&tools_dir).ok();
+    fs::create_dir_all(&skills_dir).ok();
+    fs::create_dir_all(&service_dir).ok();
+
+    // 2. Build JSON Schema properties
+    let mut props_map = serde_json::Map::new();
+    let mut required_fields = Vec::new();
+
+    for (fname, ftype) in &parsed_fields {
+        let json_type = match ftype.as_str() {
+            "i64" => "integer",
+            "f64" => "number",
+            "bool" => "boolean",
+            _ => "string",
+        };
+        props_map.insert(
+            fname.clone(),
+            serde_json::json!({
+                "type": json_type,
+                "description": format!("Parameter {}", fname)
+            }),
+        );
+        required_fields.push(fname.clone());
+    }
+
+    let description = if is_reverse_engineer {
+        "Reverse engineers a target web page, DOM structure, or API endpoint into idiomatic Pakem Blade views, Tailwind styling, Pakem Live reactive components, and Eloquent models."
+    } else {
+        "Executes business logic and queries database for the requested action."
+    };
+
+    let universal_tool = serde_json::json!({
+        "name": snake_name,
+        "description": description,
+        "openai_tool": {
+            "type": "function",
+            "function": {
+                "name": snake_name,
+                "description": description,
+                "parameters": {
+                    "type": "object",
+                    "properties": props_map,
+                    "required": required_fields
+                }
+            }
+        },
+        "gemini_declaration": {
+            "name": snake_name,
+            "description": description,
+            "parameters": {
+                "type": "OBJECT",
+                "properties": props_map,
+                "required": required_fields
+            }
+        },
+        "claude_tool": {
+            "name": snake_name,
+            "description": description,
+            "input_schema": {
+                "type": "object",
+                "properties": props_map,
+                "required": required_fields
+            }
+        }
+    });
+
+    let tool_json_path = tools_dir.join(format!("{}.json", snake_name));
+    let _ = fs::write(
+        &tool_json_path,
+        serde_json::to_string_pretty(&universal_tool).unwrap_or_default(),
+    );
+    print_success(&format!("Universal Tool Schema: {}", tool_json_path.display().to_string().bright_green()));
+
+    // 3. Generate SKILL.md for Antigravity & Cursor Agent
+    let skill_md_content = if is_reverse_engineer {
+        format!(
+            r#"---
+name: {snake_name}
+description: {description}
+---
+
+# 🛠️ AI Skill: Pakem UI & System Reverse Engineer
+
+Skill ini digunakan ketika pengguna ingin meniru, mereplikasi, atau merekayasa balik (*reverse-engineer*) website, tampilan HTML, atau alur aplikasi target ke dalam Pakem Framework.
+
+## 📋 Langkah Eksekusi Reverse Engineering
+1. **Analisis DOM & Visual Target**:
+   - Dekonstruksi layout menjadi template Blade di `resources/views/`.
+   - Gunakan utility classes Tailwind CSS murni.
+2. **Rekonstruksi Interaktivitas (Pakem Live)**:
+   - Jika terdapat pencarian instan, filter live, atau modal dinamis: buat komponen Pakem Live di `src/app/live/` dengan atribut `kilat:*` atau `wire:*`.
+3. **Penyusunan Skema Data & ORM**:
+   - Bentuk Model `#[derive(PakemModel)]` di `src/app/models/`.
+   - Buat migrasi SQL yang sesuai di `database/migrations/`.
+4. **Penyusunan Controller**:
+   - Wajib menggunakan satu parameter tunggal: `req: Request`.
+   - Kembalikan `View::make("...").render(req).await` untuk web atau `req.ok()` untuk REST API.
+"#
+        )
+    } else {
+        format!(
+            r#"---
+name: {snake_name}
+description: {description}
+---
+
+# 🛠️ AI Skill: {pascal_name}
+
+Gunakan skill ini untuk memanggil tool `{snake_name}` dengan parameter terverifikasi pada Pakem Framework.
+"#
+        )
+    };
+
+    let skill_md_path = skills_dir.join("SKILL.md");
+    let _ = fs::write(&skill_md_path, skill_md_content);
+    print_success(&format!("Agent Skill Spec: {}", skill_md_path.display().to_string().bright_green()));
+
+    // 4. Generate Rust Safe Service Handler Stub
+    let mut struct_fields = String::new();
+    for (fname, ftype) in &parsed_fields {
+        struct_fields.push_str(&format!("    pub {}: {},\n", fname, ftype));
+    }
+
+    let rust_service_code = if is_reverse_engineer {
+        format!(
+            r#"use pakem::prelude::*;
+use serde::{{Deserialize, Serialize}};
+use validator::Validate;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct {pascal_name}Input {{
+{struct_fields}}}
+
+pub struct {pascal_name}Tool;
+
+impl {pascal_name}Tool {{
+    /// Execute reverse engineering of target page/component into Pakem code
+    pub async fn execute(_db: &DatabasePool, input: {pascal_name}Input) -> Result<serde_json::Value, AppError> {{
+        tracing::info!("Running AI Reverse Engineering for component: {{}}", input.component_name);
+
+        // Return hasil dekonstruksi arsitektur Pakem
+        let output = serde_json::json!({{
+            "status": "success",
+            "component": input.component_name,
+            "target_url": input.target_url,
+            "blade_view_hint": format!("resources/views/components/{{}}.blade.rs", input.component_name.to_lowercase()),
+            "message": "Target page analyzed successfully. Ready to generate Blade view and Pakem Live components."
+        }});
+
+        Ok(output)
+    }}
+}}
+"#
+        )
+    } else {
+        format!(
+            r#"use pakem::prelude::*;
+use serde::{{Deserialize, Serialize}};
+use validator::Validate;
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct {pascal_name}Input {{
+{struct_fields}}}
+
+pub struct {pascal_name}Tool;
+
+impl {pascal_name}Tool {{
+    /// Execute tool action safely against database and application services
+    pub async fn execute(_db: &DatabasePool, input: {pascal_name}Input) -> Result<serde_json::Value, AppError> {{
+        tracing::info!("Executing AI Tool {pascal_name} with input: {{:?}}", input);
+
+        let result = serde_json::json!({{
+            "status": "success",
+            "data": "Operation executed successfully"
+        }});
+
+        Ok(result)
+    }}
+}}
+"#
+        )
+    };
+
+    let service_file_path = service_dir.join(format!("{}_tool.rs", snake_name));
+    let _ = fs::write(&service_file_path, rust_service_code);
+    print_success(&format!("Rust Tool Handler: {}", service_file_path.display().to_string().bright_green()));
+
+    println!("\n  ✨ AI Skill & Tool [{}] ready for Gemini, Claude, OpenAI & Antigravity!", pascal_name);
+    print_hint(&format!("AI assistants can now call `{}` function safely through your Pakem services.", snake_name));
+}
